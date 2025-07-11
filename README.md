@@ -2,8 +2,9 @@
 
 This is the pybind for the AMGPCG solver in [yuchen-sun-cg/lfm](https://github.com/yuchen-sun-cg/lfm) using pytorch extension.
 
-This code is used by [VPFM](https://github.com/pfm-gatech/VPFM).
 ---
+
+This code is used by [VPFM](https://github.com/pfm-gatech/VPFM).
 
 ## Installation
 
