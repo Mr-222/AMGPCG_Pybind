@@ -12,5 +12,6 @@ To install, run:
 
 ```bash
 pip install .
+```
 
 Make sure that you always import torch first before import amgpcg_pybind.
