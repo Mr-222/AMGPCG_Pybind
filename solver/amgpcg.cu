@@ -190,19 +190,19 @@ void AMGPCG::BuildAsync(float _default_a_diag, float _default_a_off_diag, cudaSt
     poisson_vector_[0].TrimAsync(_default_a_diag, _default_a_off_diag, _stream);
     for (int i = 1; i < level_num_; i++) {
         {
-            uint8_t* coarse_is_dof      = poisson_vector_[i].is_dof_->dev_ptr_;
-            float* coarse_a_diag     = poisson_vector_[i].a_diag_->dev_ptr_;
-            float* coarse_a_x        = poisson_vector_[i].a_x_->dev_ptr_;
-            float* coarse_a_y        = poisson_vector_[i].a_y_->dev_ptr_;
-            float* coarse_a_z        = poisson_vector_[i].a_z_->dev_ptr_;
-            int3 coarse_tile_dim     = poisson_vector_[i].tile_dim_;
-            int3 fine_tile_dim       = poisson_vector_[i - 1].tile_dim_;
-            const uint8_t* fine_is_dof  = poisson_vector_[i - 1].is_dof_->dev_ptr_;
-            const float* fine_a_diag = poisson_vector_[i - 1].a_diag_->dev_ptr_;
-            const float* fine_a_x    = poisson_vector_[i - 1].a_x_->dev_ptr_;
-            const float* fine_a_y    = poisson_vector_[i - 1].a_y_->dev_ptr_;
-            const float* fine_a_z    = poisson_vector_[i - 1].a_z_->dev_ptr_;
-            int coarse_tile_num      = Prod(coarse_tile_dim);
+            uint8_t* coarse_is_dof     = poisson_vector_[i].is_dof_->dev_ptr_;
+            float* coarse_a_diag       = poisson_vector_[i].a_diag_->dev_ptr_;
+            float* coarse_a_x          = poisson_vector_[i].a_x_->dev_ptr_;
+            float* coarse_a_y          = poisson_vector_[i].a_y_->dev_ptr_;
+            float* coarse_a_z          = poisson_vector_[i].a_z_->dev_ptr_;
+            int3 coarse_tile_dim       = poisson_vector_[i].tile_dim_;
+            int3 fine_tile_dim         = poisson_vector_[i - 1].tile_dim_;
+            const uint8_t* fine_is_dof = poisson_vector_[i - 1].is_dof_->dev_ptr_;
+            const float* fine_a_diag   = poisson_vector_[i - 1].a_diag_->dev_ptr_;
+            const float* fine_a_x      = poisson_vector_[i - 1].a_x_->dev_ptr_;
+            const float* fine_a_y      = poisson_vector_[i - 1].a_y_->dev_ptr_;
+            const float* fine_a_z      = poisson_vector_[i - 1].a_z_->dev_ptr_;
+            int coarse_tile_num        = Prod(coarse_tile_dim);
             CoarsenKernel<<<coarse_tile_num, 128, 0, _stream>>>(coarse_is_dof, coarse_a_diag, coarse_a_x, coarse_a_y, coarse_a_z, coarse_tile_dim, fine_tile_dim, fine_is_dof, fine_a_diag, fine_a_x, fine_a_y, fine_a_z);
             _default_a_diag *= 0.5f;
             _default_a_off_diag *= 0.5f;
@@ -267,12 +267,12 @@ __global__ void AxpyKernel(float* _dst, int3 _tile_dim, const uint8_t* _is_dof, 
 void AMGPCG::AxpyAsync(std::shared_ptr<DHMemory<float>> _dst, const std::shared_ptr<DHMemory<float>> _coef,
                        std::shared_ptr<DHMemory<float>> _x, std::shared_ptr<DHMemory<float>> _y, cudaStream_t _stream)
 {
-    int tile_num       = Prod(tile_dim_);
-    float* dst         = _dst->dev_ptr_;
+    int tile_num          = Prod(tile_dim_);
+    float* dst            = _dst->dev_ptr_;
     const uint8_t* is_dof = poisson_vector_[0].is_dof_->dev_ptr_;
-    const float* coef  = _coef->dev_ptr_;
-    float* x           = _x->dev_ptr_;
-    float* y           = _y->dev_ptr_;
+    const float* coef     = _coef->dev_ptr_;
+    float* x              = _x->dev_ptr_;
+    float* y              = _y->dev_ptr_;
     AxpyKernel<<<tile_num, 128, 0, _stream>>>(dst, tile_dim_, is_dof, coef, x, y);
 }
 
@@ -293,11 +293,11 @@ __global__ void YmAxKernel(float* _dst, int3 _tile_dim, const uint8_t* _is_dof, 
 void AMGPCG::YmAxAsync(std::shared_ptr<DHMemory<float>> _dst,
                        const std::shared_ptr<DHMemory<float>> _coef, std::shared_ptr<DHMemory<float>> _x, cudaStream_t _stream)
 {
-    int tile_num       = Prod(tile_dim_);
-    float* dst         = _dst->dev_ptr_;
+    int tile_num          = Prod(tile_dim_);
+    float* dst            = _dst->dev_ptr_;
     const uint8_t* is_dof = poisson_vector_[0].is_dof_->dev_ptr_;
-    const float* coef  = _coef->dev_ptr_;
-    float* x           = _x->dev_ptr_;
+    const float* coef     = _coef->dev_ptr_;
+    float* x              = _x->dev_ptr_;
     YmAxKernel<<<tile_num, 128, 0, _stream>>>(dst, tile_dim_, is_dof, coef, x);
 }
 
@@ -313,50 +313,40 @@ void AMGPCG::DotSumAsync(std::shared_ptr<DHMemory<float>> _dst, cudaStream_t _st
 
 void AMGPCG::SolveAsync(cudaStream_t _stream)
 {
-    // float rel_tol = 1e-12;
-    // float abs_tol = 1e-14;
     float eps = 1e-20;
     x_->ClearDevAsync(_stream);
 
-    // DotAsync(rTr_, poisson_vector_[0].b_, poisson_vector_[0].b_, _stream);
-    // rTr_->DevToHostAsync(_stream);
-    // cudaStreamSynchronize(_stream);
-    // float initial_rTr = rTr_->host_ptr_[0];
-    // std::cout << "init |residual|_2 = " << sqrt(initial_rTr) << std::endl;
-    // float tol = max(abs_tol, initial_rTr * rel_tol);
     if (pure_neumann_)
         RecenterAsync(b_, _stream);
     VcycleDotAsync(_stream);
     DotSumAsync(old_zTr_, _stream);
     p_.swap(poisson_vector_[0].x_);
     int iter = 0;
-    // float tol = max(abs_tol_, rel_tol_ * initial_rTr);
-    float tol = abs_tol_;
-    while (true){
-    //for (int iter = 0; iter < _iter_num; iter++) {
 
+    float tol = abs_tol_;
+    while (true) {
         poisson_vector_[0].LaplacianDotAsync(Ap_, dot_buffer_, p_, _stream);
         DotSumAsync(pAp_, _stream);
 
         DivideAsync(alpha_, old_zTr_, pAp_, eps, _stream);
 
         AxpyAsync(x_, alpha_, p_, x_, _stream);
-
-        // if (iter == _iter_num - 1){
-        //     std::cout << "iter " << iter << ", |residual|_2 = " << sqrt(rTr_->host_ptr_[0]) << std::endl;
-        //     break;
-        // }
-        YmAxAsync(poisson_vector_[0].b_, alpha_, Ap_, _stream);
-        DotSumAsync(rTr_, _stream);
-
-        rTr_->DevToHostAsync(_stream);
-        cudaStreamSynchronize(_stream);
-        // std::cout << "iter " << iter << ", |residual|_2 = " << sqrt(rTr_->host_ptr_[0]) << std::endl;
-        if ((rTr_->host_ptr_[0] < tol) || (iter == max_iter_)) {
-            std::cout << "iter " << iter << ", |residual|_2 = " << sqrt(rTr_->host_ptr_[0]) << std::endl;
+        
+        if (iter == max_iter_ - 1)
             break;
-        }
 
+        YmAxAsync(poisson_vector_[0].b_, alpha_, Ap_, _stream);
+        if (solve_by_tol_) {
+            DotSumAsync(rTr_, _stream);
+
+            rTr_->DevToHostAsync(_stream);
+            cudaStreamSynchronize(_stream);
+
+            if ((rTr_->host_ptr_[0] < tol)) {
+                std::cout << "iter " << iter << ", |residual|_2 = " << sqrt(rTr_->host_ptr_[0]) << std::endl;
+                break;
+            }
+        }
         if (pure_neumann_)
             RecenterAsync(b_, _stream);
         VcycleDotAsync(_stream);
@@ -410,9 +400,9 @@ __global__ void MinusKernel(float* _dst, const uint8_t* _is_dof, const float* _v
 
 void AMGPCG::RecenterAsync(std::shared_ptr<DHMemory<float>> _dst, cudaStream_t _stream)
 {
-    int tile_num       = Prod(tile_dim_);
-    float* src         = _dst->dev_ptr_;
-    float* dst         = dot_buffer_->dev_ptr_;
+    int tile_num          = Prod(tile_dim_);
+    float* src            = _dst->dev_ptr_;
+    float* dst            = dot_buffer_->dev_ptr_;
     const uint8_t* is_dof = poisson_vector_[0].is_dof_->dev_ptr_;
     CalcBlockSumKernel<<<tile_num, 128, 0, _stream>>>(dst, src, is_dof);
     void* d_temp_storage      = (void*)(dot_tmp_->dev_ptr_);
@@ -446,8 +436,8 @@ __global__ void CountBlockDofKernel(int* _dst, const uint8_t* _is_dof)
 
 void AMGPCG::CountDofAsync(cudaStream_t _stream)
 {
-    int tile_num       = Prod(tile_dim_);
-    int* dst           = block_num_dof_->dev_ptr_;
+    int tile_num          = Prod(tile_dim_);
+    int* dst              = block_num_dof_->dev_ptr_;
     const uint8_t* is_dof = poisson_vector_[0].is_dof_->dev_ptr_;
     CountBlockDofKernel<<<tile_num, 128, 0, _stream>>>(dst, is_dof);
 
