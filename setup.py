@@ -8,7 +8,7 @@ setup(
         CUDAExtension(
             name="amgpcg_pybind",
             sources=[
-                "amgpcg_torch.cpp",
+                "amgpcg_torch.cu",
                 "solver/amgpcg.cu",
                 "solver/trim_poisson.cu",
                 "common/data_io.cu",

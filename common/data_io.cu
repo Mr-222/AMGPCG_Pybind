@@ -43,33 +43,6 @@ void ConToTileAsync(DHMemory<T>& _dst, int3 _tile_dim, const DHMemory<T>& _src, 
 }
 
 template <typename T>
-void ConToTileAsync(DHMemory<T>& _dst, int3 _tile_dim, torch::Tensor _src, cudaStream_t _stream)
-{
-    TORCH_CHECK(_src.is_cuda(), "src must be a CUDA tensor");
-    TORCH_CHECK(_src.is_contiguous(), "src must be contiguous");
-    TORCH_CHECK(_src.scalar_type() == torch::CppTypeToScalarType<T>(), "type mismatch");
-
-    T* dst = _dst.dev_ptr_;
-    const T* src = _src.data_ptr<T>();
-    int tile_num = Prod(_tile_dim);
-    ConToTileKernel<<<tile_num, 128, 0, _stream>>>(dst, _tile_dim, src);
-}
-
-template <typename T>
-void ConToTileAsync(torch::Tensor _dst, int3 _tile_dim, const DHMemory<T>& _src, cudaStream_t _stream)
-{
-    TORCH_CHECK(_dst.is_cuda(), "dst must be a CUDA tensor");
-    TORCH_CHECK(_dst.is_contiguous(), "dst must be contiguous");
-    TORCH_CHECK(_dst.scalar_type() == torch::CppTypeToScalarType<T>(), "type mismatch");
-
-    T* dst = _dst.data_ptr<T>();
-    const T* src = _src.dev_ptr_;
-    int tile_num = Prod(_tile_dim);
-    ConToTileKernel<<<tile_num, 128, 0, _stream>>>(dst, _tile_dim, src);
-}
-
-
-template <typename T>
 __global__ void TileToConKernel(T* _dst, int3 _tile_dim, const T* _src)
 {
     int tile_idx  = blockIdx.x;
@@ -92,35 +65,6 @@ void TileToConAsync(DHMemory<T>& _dst, int3 _tile_dim, const DHMemory<T>& _src, 
     int tile_num = Prod(_tile_dim);
     TileToConKernel<<<tile_num, 128, 0, _stream>>>(dst, _tile_dim, src);
 }
-
-
-template <typename T>
-void TileToConAsync(torch::Tensor _dst, int3 _tile_dim, const DHMemory<T>& _src, cudaStream_t _stream)
-{
-    TORCH_CHECK(_dst.is_cuda(), "dst must be a CUDA tensor");
-    TORCH_CHECK(_dst.is_contiguous(), "dst must be contiguous");
-    TORCH_CHECK(_dst.scalar_type() == torch::CppTypeToScalarType<T>(), "type mismatch");
-
-    T* dst = _dst.data_ptr<T>();
-    const T* src = _src.dev_ptr_;
-    int tile_num = Prod(_tile_dim);
-    TileToConKernel<<<tile_num, 128, 0, _stream>>>(dst, _tile_dim, src);
-}
-
-template <typename T>
-void TileToConAsync(DHMemory<T>& _dst, int3 _tile_dim, torch::Tensor _src, cudaStream_t _stream)
-{
-    TORCH_CHECK(_src.is_cuda(), "src must be a CUDA tensor");
-    TORCH_CHECK(_src.is_contiguous(), "src must be contiguous");
-    TORCH_CHECK(_src.scalar_type() == torch::CppTypeToScalarType<T>(), "type mismatch");
-
-    T* dst = _dst.dev_ptr_;
-    const T* src = _src.data_ptr<T>();
-    int tile_num = Prod(_tile_dim);
-    TileToConKernel<<<tile_num, 128, 0, _stream>>>(dst, _tile_dim, src);
-}
-
-
 
 template <typename T>
 __global__ void StagConToTileXKernel(T* _dst_x, int3 _tile_dim, const T* _src_x)
@@ -933,15 +877,6 @@ void WriteNpy(std::string _file, int3 _grid_dim, const T* _data)
         d.data[i] = _data[i];
     npy::write_npy<T>(_file, d);
 }
-
-template void ConToTileAsync<uint8_t>(DHMemory<uint8_t>&, int3, torch::Tensor, cudaStream_t);
-template void ConToTileAsync<float>(DHMemory<float>&, int3, torch::Tensor, cudaStream_t);
-template void ConToTileAsync<uint8_t>(torch::Tensor, int3, const DHMemory<uint8_t>&, cudaStream_t);
-template void ConToTileAsync<float>(torch::Tensor, int3, const DHMemory<float>&, cudaStream_t);
-template void TileToConAsync<uint8_t>(torch::Tensor, int3, const DHMemory<uint8_t>&, cudaStream_t);
-template void TileToConAsync<float>(torch::Tensor, int3, const DHMemory<float>&, cudaStream_t);
-template void TileToConAsync<uint8_t>(DHMemory<uint8_t>&, int3, torch::Tensor, cudaStream_t);
-template void TileToConAsync<float>(DHMemory<float>&, int3, torch::Tensor, cudaStream_t);
 
 template void TileToConAsync<uint8_t>(DHMemory<uint8_t>&, int3, const DHMemory<uint8_t>&, cudaStream_t);
 template void TileToConAsync<float>(DHMemory<float>&, int3, const DHMemory<float>&, cudaStream_t);

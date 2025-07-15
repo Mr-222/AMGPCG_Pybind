@@ -5,25 +5,8 @@
 #include "setting.h"
 #include "util.h"
 #include <string>
-#include <torch/extension.h>
 
 namespace lfm {
-template <typename T>
-void ConToTileAsync(DHMemory<T>& _dst, int3 _tile_dim, torch::Tensor _src, cudaStream_t _stream);
-
-template <typename T>
-void ConToTileAsync(torch::Tensor _dst, int3 _tile_dim, const DHMemory<T>& _src, cudaStream_t _stream);
-
-template <typename T>
-void TileToConAsync(torch::Tensor _dst, int3 _tile_dim, const DHMemory<T>& _src, cudaStream_t _stream);
-
-template <typename T>
-void TileToConAsync(DHMemory<T>& _dst, int3 _tile_dim, torch::Tensor _src, cudaStream_t _stream);
-
-
-
-
-
 template <typename T>
 void ConToTileAsync(DHMemory<T>& _dst, int3 _tile_dim, const DHMemory<T>& _src, cudaStream_t _stream);
 
