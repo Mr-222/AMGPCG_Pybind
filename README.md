@@ -4,7 +4,7 @@ This is the pybind for the AMGPCG solver in [yuchen-sun-cg/lfm](https://github.c
 
 ---
 
-This code is used by [VPFM](https://github.com/pfm-gatech/VPFM).
+This code is used by [LFM](https://github.com/yuchen-sun-cg/lfm), [VPFM](https://github.com/pfm-gatech/VPFM).
 
 ## Installation
 
