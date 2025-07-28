@@ -331,7 +331,7 @@ void AMGPCG::SolveAsync(cudaStream_t _stream)
         DivideAsync(alpha_, old_zTr_, pAp_, eps, _stream);
 
         AxpyAsync(x_, alpha_, p_, x_, _stream);
-        
+
         if (iter == max_iter_ - 1)
             break;
 

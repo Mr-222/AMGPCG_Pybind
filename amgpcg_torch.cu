@@ -1,6 +1,6 @@
 #include "solver/amgpcg.h"
-#include <torch/extension.h>
 #include <cstdio>
+#include <torch/extension.h>
 
 using namespace lfm;
 
@@ -33,7 +33,7 @@ void TorchConToTileAsync(DHMemory<T>& _dst, int3 _tile_dim, torch::Tensor _src, 
     TORCH_CHECK(_src.is_contiguous(), "src must be contiguous");
     TORCH_CHECK(_src.scalar_type() == torch::CppTypeToScalarType<T>(), "type mismatch");
 
-    T* dst = _dst.dev_ptr_;
+    T* dst       = _dst.dev_ptr_;
     const T* src = _src.data_ptr<T>();
     int tile_num = Prod(_tile_dim);
     TorchConToTileKernel<<<tile_num, 128, 0, _stream>>>(dst, _tile_dim, src);
@@ -46,12 +46,11 @@ void TorchConToTileAsync(torch::Tensor _dst, int3 _tile_dim, const DHMemory<T>& 
     TORCH_CHECK(_dst.is_contiguous(), "dst must be contiguous");
     TORCH_CHECK(_dst.scalar_type() == torch::CppTypeToScalarType<T>(), "type mismatch");
 
-    T* dst = _dst.data_ptr<T>();
+    T* dst       = _dst.data_ptr<T>();
     const T* src = _src.dev_ptr_;
     int tile_num = Prod(_tile_dim);
     TorchConToTileKernel<<<tile_num, 128, 0, _stream>>>(dst, _tile_dim, src);
 }
-
 
 template <typename T>
 __global__ void TorchTileToConKernel(T* _dst, int3 _tile_dim, const T* _src)
@@ -75,7 +74,7 @@ void TorchTileToConAsync(torch::Tensor _dst, int3 _tile_dim, const DHMemory<T>& 
     TORCH_CHECK(_dst.is_contiguous(), "dst must be contiguous");
     TORCH_CHECK(_dst.scalar_type() == torch::CppTypeToScalarType<T>(), "type mismatch");
 
-    T* dst = _dst.data_ptr<T>();
+    T* dst       = _dst.data_ptr<T>();
     const T* src = _src.dev_ptr_;
     int tile_num = Prod(_tile_dim);
     TorchTileToConKernel<<<tile_num, 128, 0, _stream>>>(dst, _tile_dim, src);
@@ -88,7 +87,7 @@ void TorchTileToConAsync(DHMemory<T>& _dst, int3 _tile_dim, torch::Tensor _src, 
     TORCH_CHECK(_src.is_contiguous(), "src must be contiguous");
     TORCH_CHECK(_src.scalar_type() == torch::CppTypeToScalarType<T>(), "type mismatch");
 
-    T* dst = _dst.dev_ptr_;
+    T* dst       = _dst.dev_ptr_;
     const T* src = _src.data_ptr<T>();
     int tile_num = Prod(_tile_dim);
     TorchTileToConKernel<<<tile_num, 128, 0, _stream>>>(dst, _tile_dim, src);
@@ -97,12 +96,12 @@ void TorchTileToConAsync(DHMemory<T>& _dst, int3 _tile_dim, torch::Tensor _src, 
 class AMGPCGTorch {
 public:
     AMGPCGTorch(std::vector<int> _tile_dim_vec,
-        int _bottom_smoothing = 10, bool _verbose = false, bool _iter_info = false,
-        bool _trim_info = false)
+                int _bottom_smoothing = 10, bool _verbose = false, bool _iter_info = false,
+                bool _trim_info = false)
         : verbose_(_verbose)
     {
         int3 tile_dim = make_int3(_tile_dim_vec[0], _tile_dim_vec[1], _tile_dim_vec[2]);
-        tile_dim_ = tile_dim;
+        tile_dim_     = tile_dim;
 
         int level_num = 3;
         // int3 tile_dim_tmp = tile_dim;
@@ -127,21 +126,21 @@ public:
 
         amgpcg_.Alloc(tile_dim, level_num);
         amgpcg_.bottom_smoothing_ = _bottom_smoothing;
-        amgpcg_.verbose_ = _verbose;
-        amgpcg_.iter_info_ = _iter_info;
-        amgpcg_.trim_info_ = _trim_info;
+        amgpcg_.verbose_          = _verbose;
+        amgpcg_.iter_info_        = _iter_info;
+        amgpcg_.trim_info_        = _trim_info;
         if (verbose_) {
             printf("[AMGPCG] Solver Constructed\n");
         }
     }
     ~AMGPCGTorch()
     {
-    if (verbose_) {
-        printf("[AMGPCG] Solver Destructed\n");
+        if (verbose_) {
+            printf("[AMGPCG] Solver Destructed\n");
         }
     }
     void load_coeff(torch::Tensor _a_diag, torch::Tensor _a_x,
-        torch::Tensor _a_y, torch::Tensor _a_z, torch::Tensor _is_dof)
+                    torch::Tensor _a_y, torch::Tensor _a_z, torch::Tensor _is_dof)
     {
         CHECK_INPUT(_a_diag);
         CHECK_INPUT(_a_x);
@@ -157,7 +156,7 @@ public:
         cudaStreamSynchronize(sim_stream);
     }
     void extract_coeff(torch::Tensor _a_diag, torch::Tensor _a_x,
-        torch::Tensor _a_y, torch::Tensor _a_z, torch::Tensor _is_dof)
+                       torch::Tensor _a_y, torch::Tensor _a_z, torch::Tensor _is_dof)
     {
         CHECK_INPUT(_a_diag);
         CHECK_INPUT(_a_x);
@@ -197,8 +196,8 @@ public:
 
         amgpcg_.pure_neumann_ = _pure_neumann;
 
-        amgpcg_.rel_tol_ = _rel_tol;
-        amgpcg_.abs_tol_ = _abs_tol;
+        amgpcg_.rel_tol_  = _rel_tol;
+        amgpcg_.abs_tol_  = _abs_tol;
         amgpcg_.max_iter_ = _max_iter;
 
         amgpcg_.SolveAsync(sim_stream);
@@ -215,15 +214,15 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     py::class_<AMGPCGTorch>(m, "AMGPCGTorch")
         .def(py::init<std::vector<int>, int, bool, bool, bool>(), py::arg("tile_dim_vec"), py::arg("bottom_smoothing") = 10,
-            py::arg("verbose") = false, py::arg("iter_info") = false, py::arg("trim_info") = false)
+             py::arg("verbose") = false, py::arg("iter_info") = false, py::arg("trim_info") = false)
         .def("load_coeff", &AMGPCGTorch::load_coeff, py::arg("a_diag"), py::arg("a_x"),
-            py::arg("a_y"), py::arg("a_z"), py::arg("is_dof"))
+             py::arg("a_y"), py::arg("a_z"), py::arg("is_dof"))
         .def("load_rhs", &AMGPCGTorch::load_rhs, py::arg("b"))
         .def("extract_coeff", &AMGPCGTorch::extract_coeff, py::arg("a_diag"), py::arg("a_x"),
-            py::arg("a_y"), py::arg("a_z"), py::arg("is_dof"))
+             py::arg("a_y"), py::arg("a_z"), py::arg("is_dof"))
         .def("extract_rhs", &AMGPCGTorch::extract_rhs, py::arg("b"))
         .def("build", &AMGPCGTorch::build, py::arg("default_a_diag"),
-            py::arg("default_a_off_diag"))
+             py::arg("default_a_off_diag"))
         .def("solve", &AMGPCGTorch::solve, py::arg("x"), py::arg("pure_neumann") = false,
-            py::arg("rel_tol") = 1e-12, py::arg("abs_tol") = 1e-12, py::arg("max_iter") = 400);
+             py::arg("rel_tol") = 1e-12, py::arg("abs_tol") = 1e-12, py::arg("max_iter") = 400);
 }

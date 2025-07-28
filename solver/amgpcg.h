@@ -11,9 +11,9 @@ public:
 
     bool pure_neumann_    = true;
     int bottom_smoothing_ = 10;
-    
-    float abs_tol_ = 1e-14;
-    int max_iter_ = 400;
+
+    float abs_tol_     = 1e-14;
+    int max_iter_      = 400;
     bool solve_by_tol_ = true;
 
     std::shared_ptr<DHMemory<float>> rTr_;

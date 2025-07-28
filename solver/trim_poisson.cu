@@ -340,17 +340,17 @@ __global__ void TrimTrivialKernel(uint8_t* _tile_trimmed, int3 _tile_dim, const 
 
 void TrimPoisson::TrimAsync(float _default_a_diag, float _default_a_off_diag, cudaStream_t _stream)
 {
-    default_a_diag_     = _default_a_diag;
-    default_a_off_diag_ = _default_a_off_diag;
-    int tile_num        = Prod(tile_dim_);
-    uint8_t* tile_trimmed  = tile_trimmed_->dev_ptr_;
+    default_a_diag_       = _default_a_diag;
+    default_a_off_diag_   = _default_a_off_diag;
+    int tile_num          = Prod(tile_dim_);
+    uint8_t* tile_trimmed = tile_trimmed_->dev_ptr_;
     cudaMemsetAsync((void*)tile_trimmed, 0x00, tile_num, _stream);
 
-    const uint8_t* is_dof  = is_dof_->dev_ptr_;
-    const float* a_diag = a_diag_->dev_ptr_;
-    const float* a_x    = a_x_->dev_ptr_;
-    const float* a_y    = a_y_->dev_ptr_;
-    const float* a_z    = a_z_->dev_ptr_;
+    const uint8_t* is_dof = is_dof_->dev_ptr_;
+    const float* a_diag   = a_diag_->dev_ptr_;
+    const float* a_x      = a_x_->dev_ptr_;
+    const float* a_y      = a_y_->dev_ptr_;
+    const float* a_z      = a_z_->dev_ptr_;
     TrimEmptyKernel<<<tile_num, 128, 0, _stream>>>(tile_trimmed, tile_dim_, is_dof);
     TrimTrivialKernel<<<tile_num, 128, 0, _stream>>>(tile_trimmed, tile_dim_, is_dof, a_diag, a_x, a_y, a_z, default_a_diag_, default_a_off_diag_);
 }
@@ -551,16 +551,16 @@ __global__ void LaplacianDotNonTrivialKernel(float* _result, int3 _tile_dim, flo
 
 void TrimPoisson::LaplacianDotAsync(std::shared_ptr<DHMemory<float>> _output, std::shared_ptr<DHMemory<float>> _dot_buffer, const std::shared_ptr<DHMemory<float>> _input, cudaStream_t _stream) const
 {
-    int tile_num             = Prod(tile_dim_);
-    float* result            = _output->dev_ptr_;
-    float* dot_buffer        = _dot_buffer->dev_ptr_;
-    const float* x           = _input->dev_ptr_;
+    int tile_num                = Prod(tile_dim_);
+    float* result               = _output->dev_ptr_;
+    float* dot_buffer           = _dot_buffer->dev_ptr_;
+    const float* x              = _input->dev_ptr_;
     const uint8_t* tile_trimmed = tile_trimmed_->dev_ptr_;
     const uint8_t* is_dof       = is_dof_->dev_ptr_;
-    const float* a_diag      = a_diag_->dev_ptr_;
-    const float* a_x         = a_x_->dev_ptr_;
-    const float* a_y         = a_y_->dev_ptr_;
-    const float* a_z         = a_z_->dev_ptr_;
+    const float* a_diag         = a_diag_->dev_ptr_;
+    const float* a_x            = a_x_->dev_ptr_;
+    const float* a_y            = a_y_->dev_ptr_;
+    const float* a_z            = a_z_->dev_ptr_;
     LaplacianDotTrivialKernel<<<tile_num, 128, 0, _stream>>>(result, tile_dim_, dot_buffer, x, tile_trimmed, default_a_diag_, default_a_off_diag_);
     LaplacianDotNonTrivialKernel<<<tile_num, 128, 0, _stream>>>(result, tile_dim_, dot_buffer, x, tile_trimmed, is_dof, a_diag, a_x, a_y, a_z);
 }
@@ -1375,14 +1375,14 @@ void TrimPoisson::GaussSeidelRestrictAsync(std::shared_ptr<DHMemory<float>> _coa
     float uniform_coef = -default_a_off_diag_;
     float inv_coef     = 1.0f / uniform_coef;
 
-    const uint8_t* is_dof  = is_dof_->dev_ptr_;
-    const float* a_diag = a_diag_->dev_ptr_;
-    const float* a_x    = a_x_->dev_ptr_;
-    const float* a_y    = a_y_->dev_ptr_;
-    const float* a_z    = a_z_->dev_ptr_;
+    const uint8_t* is_dof = is_dof_->dev_ptr_;
+    const float* a_diag   = a_diag_->dev_ptr_;
+    const float* a_x      = a_x_->dev_ptr_;
+    const float* a_y      = a_y_->dev_ptr_;
+    const float* a_z      = a_z_->dev_ptr_;
 
     const uint8_t* tile_trimmed = tile_trimmed_->dev_ptr_;
-    float default_inv_a_diag = 1.0f / default_a_diag_;
+    float default_inv_a_diag    = 1.0f / default_a_diag_;
     GaussSeidelRestrictTrivialKernel<<<tile_num, 128, 0, _stream>>>(x, tile_dim_, coarse_b, tile_trimmed, default_a_diag_, default_inv_a_diag, default_a_off_diag_, b);
     GaussSeidelRestrictNonTrivialKernel<<<tile_num, 128, 0, _stream>>>(x, tile_dim_, coarse_b, tile_trimmed, is_dof, a_diag, a_x, a_y, a_z, b);
 }
@@ -2230,19 +2230,19 @@ __global__ void ProlongGaussSeidelDotNonTrivialKernel(float* _dst_x, int3 _tile_
 }
 void TrimPoisson::ProlongGaussSeidelDotAsync(const std::shared_ptr<DHMemory<float>> _coarse_x, std::shared_ptr<DHMemory<float>> _dot_buffer, bool _do_dot, cudaStream_t _stream)
 {
-    int tile_num             = Prod(tile_dim_);
-    float* dst_x             = buffer_->dev_ptr_;
-    const float* x           = x_->dev_ptr_;
-    const float* b           = b_->dev_ptr_;
-    const float* coarse_x    = _coarse_x->dev_ptr_;
+    int tile_num                = Prod(tile_dim_);
+    float* dst_x                = buffer_->dev_ptr_;
+    const float* x              = x_->dev_ptr_;
+    const float* b              = b_->dev_ptr_;
+    const float* coarse_x       = _coarse_x->dev_ptr_;
     const uint8_t* is_dof       = is_dof_->dev_ptr_;
-    const float* a_diag      = a_diag_->dev_ptr_;
-    const float* a_x         = a_x_->dev_ptr_;
-    const float* a_y         = a_y_->dev_ptr_;
-    const float* a_z         = a_z_->dev_ptr_;
+    const float* a_diag         = a_diag_->dev_ptr_;
+    const float* a_x            = a_x_->dev_ptr_;
+    const float* a_y            = a_y_->dev_ptr_;
+    const float* a_z            = a_z_->dev_ptr_;
     const uint8_t* tile_trimmed = tile_trimmed_->dev_ptr_;
-    float default_inv_a_diag = 1.0f / default_a_diag_;
-    float* dot_buffer        = _dot_buffer->dev_ptr_;
+    float default_inv_a_diag    = 1.0f / default_a_diag_;
+    float* dot_buffer           = _dot_buffer->dev_ptr_;
     ProlongGaussSeidelDotTrivialKernel<<<tile_num, 128, 0, _stream>>>(dst_x, tile_dim_, x, coarse_x, tile_trimmed, default_inv_a_diag, default_a_off_diag_, b, dot_buffer, _do_dot);
     ProlongGaussSeidelDotNonTrivialKernel<<<tile_num, 128, 0, _stream>>>(dst_x, tile_dim_, x, coarse_x, tile_trimmed, is_dof, a_diag, a_x, a_y, a_z, b, dot_buffer, _do_dot);
     x_.swap(buffer_);
@@ -2756,14 +2756,14 @@ void TrimPoisson::CoarsestGaussSeidelAsync(int _num_iter, cudaStream_t _stream)
 {
     dim3 blocks_per_grid(Prod(tile_dim_));
     dim3 threads_per_block(128);
-    float* x            = x_->dev_ptr_;
-    const uint8_t* is_dof  = is_dof_->dev_ptr_;
-    const float* a_diag = a_diag_->dev_ptr_;
-    const float* a_x    = a_x_->dev_ptr_;
-    const float* a_y    = a_y_->dev_ptr_;
-    const float* a_z    = a_z_->dev_ptr_;
-    const float* b      = b_->dev_ptr_;
-    void* args[]        = { (void*)&x, (void*)&tile_dim_, (void*)&is_dof, (void*)&a_diag, (void*)&a_x, (void*)&a_y, (void*)&a_z, (void*)&b, (void*)&_num_iter };
+    float* x              = x_->dev_ptr_;
+    const uint8_t* is_dof = is_dof_->dev_ptr_;
+    const float* a_diag   = a_diag_->dev_ptr_;
+    const float* a_x      = a_x_->dev_ptr_;
+    const float* a_y      = a_y_->dev_ptr_;
+    const float* a_z      = a_z_->dev_ptr_;
+    const float* b        = b_->dev_ptr_;
+    void* args[]          = { (void*)&x, (void*)&tile_dim_, (void*)&is_dof, (void*)&a_diag, (void*)&a_x, (void*)&a_y, (void*)&a_z, (void*)&b, (void*)&_num_iter };
     cudaLaunchCooperativeKernel((void*)CoarsestGaussSeidelKernel, blocks_per_grid, threads_per_block, args, 0, _stream);
 }
 }
