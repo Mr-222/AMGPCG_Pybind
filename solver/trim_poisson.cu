@@ -2781,4 +2781,222 @@ void TrimPoisson::CoarsestGaussSeidelAsync(int _num_iter, cudaStream_t _stream)
     void* args[]          = { (void*)&x, (void*)&tile_dim_, (void*)&is_dof, (void*)&a_diag, (void*)&a_x, (void*)&a_y, (void*)&a_z, (void*)&b, (void*)&_num_iter };
     cudaLaunchCooperativeKernel((void*)CoarsestGaussSeidelKernel, blocks_per_grid, threads_per_block, args, 0, _stream);
 }
+
+__global__ void GaussSeidel0Kernel(float* _x, int3 _tile_dim, const uint8_t* _is_dof, const float* _a_diag, const float* _a_x, const float* _a_y, const float* _a_z, const float* _b)
+{
+    int tile_idx  = blockIdx.x;
+    int3 tile_ijk = TileIdxToIjk(_tile_dim, tile_idx);
+    int t_id      = threadIdx.x;
+    for (int i = 0; i < 2; i++) {
+        float result   = 0.0f;
+        int id         = i * 128 + t_id;
+        int a          = id / 32;
+        int b          = id % 32;
+        int3 voxel_ijk = { a, b / 4, 2 * (b % 4) + (b / 4 + a) % 2 };
+        int voxel_idx  = VoxelIjkToIdx(voxel_ijk);
+        int idx        = tile_idx * 512 + voxel_idx;
+        if (_is_dof[idx]) {
+            float diag = _a_diag[idx];
+            if (diag > 0.0f) {
+                result               = _b[idx];
+                // right
+                int3 right_tile_ijk  = tile_ijk;
+                int3 right_voxel_ijk = { voxel_ijk.x + 1, voxel_ijk.y, voxel_ijk.z };
+                if (right_voxel_ijk.x == 8) {
+                    right_tile_ijk.x++;
+                    right_voxel_ijk.x = 0;
+                }
+                if (right_tile_ijk.x < _tile_dim.x) {
+                    int right_idx = TileIjkToIdx(_tile_dim, right_tile_ijk) * 512 + VoxelIjkToIdx(right_voxel_ijk);
+                    if (_is_dof[right_idx])
+                        result -= _a_x[idx] * _x[right_idx];
+                }
+                // up
+                int3 up_tile_ijk  = tile_ijk;
+                int3 up_voxel_ijk = { voxel_ijk.x, voxel_ijk.y + 1, voxel_ijk.z };
+                if (up_voxel_ijk.y == 8) {
+                    up_tile_ijk.y++;
+                    up_voxel_ijk.y = 0;
+                }
+                if (up_tile_ijk.y < _tile_dim.y) {
+                    int up_idx = TileIjkToIdx(_tile_dim, up_tile_ijk) * 512 + VoxelIjkToIdx(up_voxel_ijk);
+                    if (_is_dof[up_idx])
+                        result -= _a_y[idx] * _x[up_idx];
+                }
+                // front
+                int3 front_tile_ijk  = tile_ijk;
+                int3 front_voxel_ijk = { voxel_ijk.x, voxel_ijk.y, voxel_ijk.z + 1 };
+                if (front_voxel_ijk.z == 8) {
+                    front_tile_ijk.z++;
+                    front_voxel_ijk.z = 0;
+                }
+                if (front_tile_ijk.z < _tile_dim.z) {
+                    int front_idx = TileIjkToIdx(_tile_dim, front_tile_ijk) * 512 + VoxelIjkToIdx(front_voxel_ijk);
+                    if (_is_dof[front_idx])
+                        result -= _a_z[idx] * _x[front_idx];
+                }
+                // left
+                int3 left_tile_ijk  = tile_ijk;
+                int3 left_voxel_ijk = { voxel_ijk.x - 1, voxel_ijk.y, voxel_ijk.z };
+                if (left_voxel_ijk.x == -1) {
+                    left_tile_ijk.x--;
+                    left_voxel_ijk.x = 7;
+                }
+                if (left_tile_ijk.x >= 0) {
+                    int left_idx = TileIjkToIdx(_tile_dim, left_tile_ijk) * 512 + VoxelIjkToIdx(left_voxel_ijk);
+                    if (_is_dof[left_idx])
+                        result -= _a_x[left_idx] * _x[left_idx];
+                }
+                // bottom
+                int3 bottom_tile_ijk  = tile_ijk;
+                int3 bottom_voxel_ijk = { voxel_ijk.x, voxel_ijk.y - 1, voxel_ijk.z };
+                if (bottom_voxel_ijk.y == -1) {
+                    bottom_tile_ijk.y--;
+                    bottom_voxel_ijk.y = 7;
+                }
+                if (bottom_tile_ijk.y >= 0) {
+                    int bottom_idx = TileIjkToIdx(_tile_dim, bottom_tile_ijk) * 512 + VoxelIjkToIdx(bottom_voxel_ijk);
+                    if (_is_dof[bottom_idx])
+                        result -= _a_y[bottom_idx] * _x[bottom_idx];
+                }
+                // back
+                int3 back_tile_ijk  = tile_ijk;
+                int3 back_voxel_ijk = { voxel_ijk.x, voxel_ijk.y, voxel_ijk.z - 1 };
+                if (back_voxel_ijk.z == -1) {
+                    back_tile_ijk.z--;
+                    back_voxel_ijk.z = 7;
+                }
+                if (back_tile_ijk.z >= 0) {
+                    int back_idx = TileIjkToIdx(_tile_dim, back_tile_ijk) * 512 + VoxelIjkToIdx(back_voxel_ijk);
+                    if (_is_dof[back_idx])
+                        result -= _a_z[back_idx] * _x[back_idx];
+                }
+            }
+            result  = result / diag;
+            _x[idx] = result;
+        }
+    }
+}
+
+__global__ void GaussSeidel1Kernel(float* _x, int3 _tile_dim, const uint8_t* _is_dof, const float* _a_diag, const float* _a_x, const float* _a_y, const float* _a_z, const float* _b)
+{
+    int tile_idx  = blockIdx.x;
+    int3 tile_ijk = TileIdxToIjk(_tile_dim, tile_idx);
+    int t_id      = threadIdx.x;
+    for (int i = 0; i < 2; i++) {
+        float result   = 0.0f;
+        int id         = i * 128 + t_id;
+        int a          = id / 32;
+        int b          = id % 32;
+        int3 voxel_ijk = { a, b / 4, 2 * (b % 4) + !((b / 4 + a) % 2) };
+        int voxel_idx  = VoxelIjkToIdx(voxel_ijk);
+        int idx        = tile_idx * 512 + voxel_idx;
+        if (_is_dof[idx]) {
+            float diag = _a_diag[idx];
+            if (diag > 0.0f) {
+                result               = _b[idx];
+                // right
+                int3 right_tile_ijk  = tile_ijk;
+                int3 right_voxel_ijk = { voxel_ijk.x + 1, voxel_ijk.y, voxel_ijk.z };
+                if (right_voxel_ijk.x == 8) {
+                    right_tile_ijk.x++;
+                    right_voxel_ijk.x = 0;
+                }
+                if (right_tile_ijk.x < _tile_dim.x) {
+                    int right_idx = TileIjkToIdx(_tile_dim, right_tile_ijk) * 512 + VoxelIjkToIdx(right_voxel_ijk);
+                    if (_is_dof[right_idx])
+                        result -= _a_x[idx] * _x[right_idx];
+                }
+                // up
+                int3 up_tile_ijk  = tile_ijk;
+                int3 up_voxel_ijk = { voxel_ijk.x, voxel_ijk.y + 1, voxel_ijk.z };
+                if (up_voxel_ijk.y == 8) {
+                    up_tile_ijk.y++;
+                    up_voxel_ijk.y = 0;
+                }
+                if (up_tile_ijk.y < _tile_dim.y) {
+                    int up_idx = TileIjkToIdx(_tile_dim, up_tile_ijk) * 512 + VoxelIjkToIdx(up_voxel_ijk);
+                    if (_is_dof[up_idx])
+                        result -= _a_y[idx] * _x[up_idx];
+                }
+                // front
+                int3 front_tile_ijk  = tile_ijk;
+                int3 front_voxel_ijk = { voxel_ijk.x, voxel_ijk.y, voxel_ijk.z + 1 };
+                if (front_voxel_ijk.z == 8) {
+                    front_tile_ijk.z++;
+                    front_voxel_ijk.z = 0;
+                }
+                if (front_tile_ijk.z < _tile_dim.z) {
+                    int front_idx = TileIjkToIdx(_tile_dim, front_tile_ijk) * 512 + VoxelIjkToIdx(front_voxel_ijk);
+                    if (_is_dof[front_idx])
+                        result -= _a_z[idx] * _x[front_idx];
+                }
+                // left
+                int3 left_tile_ijk  = tile_ijk;
+                int3 left_voxel_ijk = { voxel_ijk.x - 1, voxel_ijk.y, voxel_ijk.z };
+                if (left_voxel_ijk.x == -1) {
+                    left_tile_ijk.x--;
+                    left_voxel_ijk.x = 7;
+                }
+                if (left_tile_ijk.x >= 0) {
+                    int left_idx = TileIjkToIdx(_tile_dim, left_tile_ijk) * 512 + VoxelIjkToIdx(left_voxel_ijk);
+                    if (_is_dof[left_idx])
+                        result -= _a_x[left_idx] * _x[left_idx];
+                }
+                // bottom
+                int3 bottom_tile_ijk  = tile_ijk;
+                int3 bottom_voxel_ijk = { voxel_ijk.x, voxel_ijk.y - 1, voxel_ijk.z };
+                if (bottom_voxel_ijk.y == -1) {
+                    bottom_tile_ijk.y--;
+                    bottom_voxel_ijk.y = 7;
+                }
+                if (bottom_tile_ijk.y >= 0) {
+                    int bottom_idx = TileIjkToIdx(_tile_dim, bottom_tile_ijk) * 512 + VoxelIjkToIdx(bottom_voxel_ijk);
+                    if (_is_dof[bottom_idx])
+                        result -= _a_y[bottom_idx] * _x[bottom_idx];
+                }
+                // back
+                int3 back_tile_ijk  = tile_ijk;
+                int3 back_voxel_ijk = { voxel_ijk.x, voxel_ijk.y, voxel_ijk.z - 1 };
+                if (back_voxel_ijk.z == -1) {
+                    back_tile_ijk.z--;
+                    back_voxel_ijk.z = 7;
+                }
+                if (back_tile_ijk.z >= 0) {
+                    int back_idx = TileIjkToIdx(_tile_dim, back_tile_ijk) * 512 + VoxelIjkToIdx(back_voxel_ijk);
+                    if (_is_dof[back_idx])
+                        result -= _a_z[back_idx] * _x[back_idx];
+                }
+            }
+            result  = result / diag;
+            _x[idx] = result;
+        }
+    }
+}
+
+void TrimPoisson::GaussSeidel0Async(cudaStream_t _stream)
+{
+    float* x              = x_->dev_ptr_;
+    const uint8_t* is_dof = is_dof_->dev_ptr_;
+    const float* a_diag   = a_diag_->dev_ptr_;
+    const float* a_x      = a_x_->dev_ptr_;
+    const float* a_y      = a_y_->dev_ptr_;
+    const float* a_z      = a_z_->dev_ptr_;
+    const float* b        = b_->dev_ptr_;
+    int tile_num          = Prod(tile_dim_);
+    GaussSeidel0Kernel<<<tile_num, 128, 0, _stream>>>(x, tile_dim_, is_dof, a_diag, a_x, a_y, a_z, b);
+}
+
+void TrimPoisson::GaussSeidel1Async(cudaStream_t _stream)
+{
+    float* x              = x_->dev_ptr_;
+    const uint8_t* is_dof = is_dof_->dev_ptr_;
+    const float* a_diag   = a_diag_->dev_ptr_;
+    const float* a_x      = a_x_->dev_ptr_;
+    const float* a_y      = a_y_->dev_ptr_;
+    const float* a_z      = a_z_->dev_ptr_;
+    const float* b        = b_->dev_ptr_;
+    int tile_num          = Prod(tile_dim_);
+    GaussSeidel1Kernel<<<tile_num, 128, 0, _stream>>>(x, tile_dim_, is_dof, a_diag, a_x, a_y, a_z, b);
+}
 }

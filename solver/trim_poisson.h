@@ -32,5 +32,7 @@ public:
     void GaussSeidelRestrictAsync(std::shared_ptr<DHMemory<float>> _coarse_b, cudaStream_t _stream);
     void ProlongGaussSeidelDotAsync(const std::shared_ptr<DHMemory<float>> _coarse_x, std::shared_ptr<DHMemory<float>> _dot_buffer, bool _do_dot, cudaStream_t _stream);
     void CoarsestGaussSeidelAsync(int _num_iter, cudaStream_t _stream);
+    void GaussSeidel0Async(cudaStream_t _stream);
+    void GaussSeidel1Async(cudaStream_t _stream);
 };
 }
