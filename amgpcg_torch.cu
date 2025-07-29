@@ -195,7 +195,7 @@ public:
         CHECK_INPUT(_x);
 
         amgpcg_.pure_neumann_ = _pure_neumann;
-
+        amgpcg_.solve_by_tol_ = true;
         amgpcg_.rel_tol_  = _rel_tol;
         amgpcg_.abs_tol_  = _abs_tol;
         amgpcg_.max_iter_ = _max_iter;

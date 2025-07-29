@@ -337,14 +337,17 @@ void AMGPCG::SolveAsync(cudaStream_t _stream)
     float eps = 1e-20;
     x_->ClearDevAsync(_stream);
 
-    DotAsync(rTr_, poisson_vector_[0].b_, poisson_vector_[0].b_, _stream);
-    rTr_->DevToHostAsync(_stream);
-    cudaStreamSynchronize(_stream);
-    float initial_rTr = rTr_->host_ptr_[0];
-    if (verbose_) {
-        printf("[AMGPCG] init |residual|_2 = %.3e\n", sqrt(initial_rTr));
+    float tol = 0.0f;
+    if (solve_by_tol_) {
+        DotAsync(rTr_, poisson_vector_[0].b_, poisson_vector_[0].b_, _stream);
+        rTr_->DevToHostAsync(_stream);
+        cudaStreamSynchronize(_stream);
+        float initial_rTr = rTr_->host_ptr_[0];
+        if (verbose_) {
+            printf("[AMGPCG] init |residual|_2 = %.3e\n", sqrt(initial_rTr));
+        }
+        tol = max(abs_tol_, rel_tol_ * initial_rTr);
     }
-    float tol = max(abs_tol_, rel_tol_ * initial_rTr);
 
     if (pure_neumann_)
         RecenterAsync(b_, _stream);
@@ -363,20 +366,25 @@ void AMGPCG::SolveAsync(cudaStream_t _stream)
 
         AxpyAsync(x_, alpha_, p_, x_, _stream);
 
+        if (iter == max_iter_ - 1)
+            break;
+
         YmAxAsync(poisson_vector_[0].b_, alpha_, Ap_, _stream);
 
         iter++;
-        DotAsync(rTr_, poisson_vector_[0].b_, poisson_vector_[0].b_, _stream);
-        rTr_->DevToHostAsync(_stream);
-        cudaStreamSynchronize(_stream);
-        if (iter_info_) {
-            printf("[AMGPCG] iter %02d |residual|_2 = %.3e\n", iter, sqrt(rTr_->host_ptr_[0]));
-        }
-        if ((rTr_->host_ptr_[0] < tol) || (iter == max_iter_)) {
-            if (verbose_) {
-                printf("[AMGPCG] converged at iter %02d |residual|_2 = %.3e\n", iter, sqrt(rTr_->host_ptr_[0]));
+        if (solve_by_tol_) {
+            DotAsync(rTr_, poisson_vector_[0].b_, poisson_vector_[0].b_, _stream);
+            rTr_->DevToHostAsync(_stream);
+            cudaStreamSynchronize(_stream);
+            if (iter_info_) {
+                printf("[AMGPCG] iter %02d |residual|_2 = %.3e\n", iter, sqrt(rTr_->host_ptr_[0]));
             }
-            break;
+            if (rTr_->host_ptr_[0] < tol) {
+                if (verbose_) {
+                    printf("[AMGPCG] converged at iter %02d |residual|_2 = %.3e\n", iter, sqrt(rTr_->host_ptr_[0]));
+                }
+                break;
+            }
         }
         if (pure_neumann_)
             RecenterAsync(b_, _stream);
