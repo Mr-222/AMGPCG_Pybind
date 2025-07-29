@@ -223,17 +223,20 @@ void AMGPCG::VcycleDotAsync(cudaStream_t _stream)
 {
     for (int l = 0; l < level_num_ - 1; l++)
         poisson_vector_[l].GaussSeidelRestrictAsync(poisson_vector_[l + 1].b_, _stream);
-        
-    // poisson_vector_[level_num_ - 1].CoarsestGaussSeidelAsync(bottom_smoothing_, _stream);
-    poisson_vector_[level_num_ - 1].x_->ClearDevAsync(_stream);
-    int half_bottom_smoothing = bottom_smoothing_ / 2;
-    for (int iter = 0; iter < half_bottom_smoothing; iter++) {
-        poisson_vector_[level_num_ - 1].GaussSeidel0Async(_stream);
-        poisson_vector_[level_num_ - 1].GaussSeidel1Async(_stream);
-    }
-    for (int iter = 0; iter < half_bottom_smoothing; iter++) {
-        poisson_vector_[level_num_ - 1].GaussSeidel1Async(_stream);
-        poisson_vector_[level_num_ - 1].GaussSeidel0Async(_stream);
+
+    if (cooperative_GS_) {
+        poisson_vector_[level_num_ - 1].CoarsestGaussSeidelAsync(bottom_smoothing_, _stream);
+    } else {
+        poisson_vector_[level_num_ - 1].x_->ClearDevAsync(_stream);
+        int half_bottom_smoothing = bottom_smoothing_ / 2;
+        for (int iter = 0; iter < half_bottom_smoothing; iter++) {
+            poisson_vector_[level_num_ - 1].GaussSeidel0Async(_stream);
+            poisson_vector_[level_num_ - 1].GaussSeidel1Async(_stream);
+        }
+        for (int iter = 0; iter < half_bottom_smoothing; iter++) {
+            poisson_vector_[level_num_ - 1].GaussSeidel1Async(_stream);
+            poisson_vector_[level_num_ - 1].GaussSeidel0Async(_stream);
+        }
     }
 
     for (int l = level_num_ - 2; l >= 0; l--) {

@@ -12,6 +12,7 @@ public:
     bool pure_neumann_    = true;
     int bottom_smoothing_ = 10;
     bool verbose_         = false;
+    bool cooperative_GS_ = false;
     bool iter_info_       = false;
     bool trim_info_       = false;
     float rel_tol_        = 1e-12;
