@@ -7,7 +7,7 @@ setup(
     packages=["amgpcg_pybind"],
     ext_modules=[
         CUDAExtension(
-            name="amgpcg_cuda",
+            name="amgpcg_torch",
             sources=[
                 "amgpcg_torch.cu",
                 "solver/amgpcg.cu",

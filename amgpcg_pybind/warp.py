@@ -1,7 +1,7 @@
 import torch
 import warp as wp
 
-from amgpcg_cuda import AMGPCGTorch
+from amgpcg_torch import AMGPCGTorch
 
 
 class AMGPCGWarp:
