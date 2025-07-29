@@ -103,26 +103,26 @@ public:
         int3 tile_dim = make_int3(_tile_dim_vec[0], _tile_dim_vec[1], _tile_dim_vec[2]);
         tile_dim_     = tile_dim;
 
-        int level_num = 3;
-        // int3 tile_dim_tmp = tile_dim;
-        // while (true) {
-        //     level_num++;
-        //     if (tile_dim_tmp.x % 2 == 0) {
-        //         tile_dim_tmp.x /= 2;
-        //     } else {
-        //         break;
-        //     }
-        //     if (tile_dim_tmp.y % 2 == 0) {
-        //         tile_dim_tmp.y /= 2;
-        //     } else {
-        //         break;
-        //     }
-        //     if (tile_dim_tmp.z % 2 == 0) {
-        //         tile_dim_tmp.z /= 2;
-        //     } else {
-        //         break;
-        //     }
-        // }
+        int level_num     = 0;
+        int3 tile_dim_tmp = tile_dim;
+        while (true) {
+            level_num++;
+            if (tile_dim_tmp.x % 2 == 0) {
+                tile_dim_tmp.x /= 2;
+            } else {
+                break;
+            }
+            if (tile_dim_tmp.y % 2 == 0) {
+                tile_dim_tmp.y /= 2;
+            } else {
+                break;
+            }
+            if (tile_dim_tmp.z % 2 == 0) {
+                tile_dim_tmp.z /= 2;
+            } else {
+                break;
+            }
+        }
 
         amgpcg_.Alloc(tile_dim, level_num);
         amgpcg_.bottom_smoothing_ = _bottom_smoothing;

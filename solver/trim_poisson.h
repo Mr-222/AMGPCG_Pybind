@@ -26,7 +26,7 @@ public:
     TrimPoisson() = default;
     TrimPoisson(int3 _tile_dim);
     void Alloc(int3 _tile_dim);
-    void TrimAsync(float _default_a_diag, float _default_a_off_diag, cudaStream_t _stream);
+    void TrimAsync(float _default_a_diag, float _default_a_off_diag, bool _verbose, cudaStream_t _stream);
 
     void LaplacianDotAsync(std::shared_ptr<DHMemory<float>> _output, std::shared_ptr<DHMemory<float>> _dot_buffer, const std::shared_ptr<DHMemory<float>> _input, cudaStream_t _stream) const;
     void GaussSeidelRestrictAsync(std::shared_ptr<DHMemory<float>> _coarse_b, cudaStream_t _stream);

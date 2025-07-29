@@ -11,10 +11,12 @@ public:
 
     bool pure_neumann_    = true;
     int bottom_smoothing_ = 10;
-
-    float abs_tol_     = 1e-14;
-    int max_iter_      = 400;
-    bool solve_by_tol_ = true;
+    bool verbose_         = false;
+    bool iter_info_       = false;
+    bool trim_info_       = false;
+    float rel_tol_        = 1e-12;
+    float abs_tol_        = 1e-14;
+    int max_iter_         = 400;
 
     std::shared_ptr<DHMemory<float>> rTr_;
     std::shared_ptr<DHMemory<float>> old_zTr_;
@@ -36,6 +38,9 @@ public:
 
     std::vector<TrimPoisson> poisson_vector_;
 
+    std::shared_ptr<DHMemory<float>> mul_;
+    std::shared_ptr<DHMemory<uint8_t>> global_dot_tmp_;
+
     AMGPCG() = default;
     AMGPCG(int3 _tile_dim, int _level_num);
     void Alloc(int3 _tile_dim, int _level_num);
@@ -53,5 +58,8 @@ public:
 
     void RecenterAsync(std::shared_ptr<DHMemory<float>> _dst, cudaStream_t _stream);
     void CountDofAsync(cudaStream_t _stream);
+
+    void DotAsync(std::shared_ptr<DHMemory<float>> _dst, const std::shared_ptr<DHMemory<float>> _src1,
+                  const std::shared_ptr<DHMemory<float>> _src2, cudaStream_t _stream);
 };
 };

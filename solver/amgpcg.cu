@@ -42,6 +42,12 @@ void AMGPCG::Alloc(int3 _tile_dim, int _level_num)
     }
 
     b_ = poisson_vector_[0].b_;
+
+    // dot
+    mul_ = std::make_shared<DHMemory<float>>(voxel_num);
+    cub::DeviceReduce::Sum(nullptr, tmp_size, mul_->dev_ptr_, alpha_->dev_ptr_, voxel_num);
+    tmp_size_int    = tmp_size;
+    global_dot_tmp_ = std::make_shared<DHMemory<uint8_t>>(tmp_size_int);
 }
 
 AMGPCG::AMGPCG(int3 _tile_dim, int _level_num)
@@ -187,7 +193,7 @@ __global__ void CoarsenKernel(uint8_t* _coarse_is_dof, float* _coarse_a_diag, fl
 
 void AMGPCG::BuildAsync(float _default_a_diag, float _default_a_off_diag, cudaStream_t _stream)
 {
-    poisson_vector_[0].TrimAsync(_default_a_diag, _default_a_off_diag, _stream);
+    poisson_vector_[0].TrimAsync(_default_a_diag, _default_a_off_diag, trim_info_, _stream);
     for (int i = 1; i < level_num_; i++) {
         {
             uint8_t* coarse_is_dof     = poisson_vector_[i].is_dof_->dev_ptr_;
@@ -206,7 +212,7 @@ void AMGPCG::BuildAsync(float _default_a_diag, float _default_a_off_diag, cudaSt
             CoarsenKernel<<<coarse_tile_num, 128, 0, _stream>>>(coarse_is_dof, coarse_a_diag, coarse_a_x, coarse_a_y, coarse_a_z, coarse_tile_dim, fine_tile_dim, fine_is_dof, fine_a_diag, fine_a_x, fine_a_y, fine_a_z);
             _default_a_diag *= 0.5f;
             _default_a_off_diag *= 0.5f;
-            poisson_vector_[i].TrimAsync(_default_a_diag, _default_a_off_diag, _stream);
+            poisson_vector_[i].TrimAsync(_default_a_diag, _default_a_off_diag, false, _stream);
         }
     }
     if (pure_neumann_)
@@ -316,14 +322,24 @@ void AMGPCG::SolveAsync(cudaStream_t _stream)
     float eps = 1e-20;
     x_->ClearDevAsync(_stream);
 
+    DotAsync(rTr_, poisson_vector_[0].b_, poisson_vector_[0].b_, _stream);
+    rTr_->DevToHostAsync(_stream);
+    cudaStreamSynchronize(_stream);
+    float initial_rTr = rTr_->host_ptr_[0];
+    if (verbose_) {
+        printf("[AMGPCG] init |residual|_2 = %.3e\n", sqrt(initial_rTr));
+    }
+    float tol = max(abs_tol_, rel_tol_ * initial_rTr);
+
     if (pure_neumann_)
         RecenterAsync(b_, _stream);
+
     VcycleDotAsync(_stream);
     DotSumAsync(old_zTr_, _stream);
     p_.swap(poisson_vector_[0].x_);
+
     int iter = 0;
 
-    float tol = abs_tol_;
     while (true) {
         poisson_vector_[0].LaplacianDotAsync(Ap_, dot_buffer_, p_, _stream);
         DotSumAsync(pAp_, _stream);
@@ -332,20 +348,20 @@ void AMGPCG::SolveAsync(cudaStream_t _stream)
 
         AxpyAsync(x_, alpha_, p_, x_, _stream);
 
-        if (iter == max_iter_ - 1)
-            break;
-
         YmAxAsync(poisson_vector_[0].b_, alpha_, Ap_, _stream);
-        if (solve_by_tol_) {
-            DotSumAsync(rTr_, _stream);
 
-            rTr_->DevToHostAsync(_stream);
-            cudaStreamSynchronize(_stream);
-
-            if ((rTr_->host_ptr_[0] < tol)) {
-                std::cout << "iter " << iter << ", |residual|_2 = " << sqrt(rTr_->host_ptr_[0]) << std::endl;
-                break;
+        iter++;
+        DotAsync(rTr_, poisson_vector_[0].b_, poisson_vector_[0].b_, _stream);
+        rTr_->DevToHostAsync(_stream);
+        cudaStreamSynchronize(_stream);
+        if (iter_info_) {
+            printf("[AMGPCG] iter %02d |residual|_2 = %.3e\n", iter, sqrt(rTr_->host_ptr_[0]));
+        }
+        if ((rTr_->host_ptr_[0] < tol) || (iter == max_iter_)) {
+            if (verbose_) {
+                printf("[AMGPCG] converged at iter %02d |residual|_2 = %.3e\n", iter, sqrt(rTr_->host_ptr_[0]));
             }
+            break;
         }
         if (pure_neumann_)
             RecenterAsync(b_, _stream);
@@ -357,8 +373,6 @@ void AMGPCG::SolveAsync(cudaStream_t _stream)
         AxpyAsync(p_, beta_, p_, poisson_vector_[0].x_, _stream);
 
         old_zTr_.swap(new_zTr_);
-
-        iter++;
     }
 }
 
@@ -444,5 +458,20 @@ void AMGPCG::CountDofAsync(cudaStream_t _stream)
     void* d_temp_storage      = (void*)(block_num_dof_tmp_->dev_ptr_);
     size_t temp_storage_bytes = block_num_dof_tmp_->size_;
     cub::DeviceReduce::Sum(d_temp_storage, temp_storage_bytes, dst, num_dof_->dev_ptr_, tile_num, _stream);
+}
+
+void AMGPCG::DotAsync(std::shared_ptr<DHMemory<float>> _dst, const std::shared_ptr<DHMemory<float>> _src1,
+                      const std::shared_ptr<DHMemory<float>> _src2, cudaStream_t _stream)
+{
+    float* mul_dst        = mul_->dev_ptr_;
+    const uint8_t* is_dof = poisson_vector_[0].is_dof_->dev_ptr_;
+    const float* src1     = _src1->dev_ptr_;
+    const float* src2     = _src2->dev_ptr_;
+    int tile_num          = Prod(tile_dim_);
+    MulKernel<<<tile_num, 128, 0, _stream>>>(mul_dst, is_dof, src1, src2, tile_dim_);
+
+    void* d_temp_storage      = (void*)(global_dot_tmp_->dev_ptr_);
+    size_t temp_storage_bytes = global_dot_tmp_->size_;
+    cub::DeviceReduce::Sum(d_temp_storage, temp_storage_bytes, mul_dst, _dst->dev_ptr_, tile_num * 512, _stream);
 }
 };

@@ -338,7 +338,7 @@ __global__ void TrimTrivialKernel(uint8_t* _tile_trimmed, int3 _tile_dim, const 
     }
 }
 
-void TrimPoisson::TrimAsync(float _default_a_diag, float _default_a_off_diag, cudaStream_t _stream)
+void TrimPoisson::TrimAsync(float _default_a_diag, float _default_a_off_diag, bool _verbose, cudaStream_t _stream)
 {
     default_a_diag_       = _default_a_diag;
     default_a_off_diag_   = _default_a_off_diag;
@@ -353,6 +353,21 @@ void TrimPoisson::TrimAsync(float _default_a_diag, float _default_a_off_diag, cu
     const float* a_z      = a_z_->dev_ptr_;
     TrimEmptyKernel<<<tile_num, 128, 0, _stream>>>(tile_trimmed, tile_dim_, is_dof);
     TrimTrivialKernel<<<tile_num, 128, 0, _stream>>>(tile_trimmed, tile_dim_, is_dof, a_diag, a_x, a_y, a_z, default_a_diag_, default_a_off_diag_);
+
+    if (_verbose) {
+        tile_trimmed_->DevToHostAsync(_stream);
+        int count[3] = { 0, 0, 0 };
+        int tile_num = Prod(tile_dim_);
+        for (int i = 0; i < tile_num; i++) {
+            if (tile_trimmed_->host_ptr_[i] == 0)
+                count[0]++;
+            else if (tile_trimmed_->host_ptr_[i] == 1)
+                count[1]++;
+            else if (tile_trimmed_->host_ptr_[i] == 2)
+                count[2]++;
+        }
+        printf("[AMGPCG] trim empty: %d, trivial: %d, non-trivial: %d\n", count[0], count[1], count[2]);
+    }
 }
 
 __global__ void LaplacianDotTrivialKernel(float* _result, int3 _tile_dim, float* _dot_buffer, const float* _x, const uint8_t* _tile_trimmed, float _default_a_diag, float _default_a_off_diag)

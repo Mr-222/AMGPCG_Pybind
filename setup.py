@@ -4,9 +4,10 @@ from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 setup(
     name="amgpcg_pybind",
     version="0.0.0",
+    packages=["amgpcg_pybind"],
     ext_modules=[
         CUDAExtension(
-            name="amgpcg_pybind",
+            name="amgpcg_cuda",
             sources=[
                 "amgpcg_torch.cu",
                 "solver/amgpcg.cu",
