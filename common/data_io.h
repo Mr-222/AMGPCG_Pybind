@@ -1,7 +1,6 @@
 #pragma once
 
 #include "mem.h"
-#include "mesh.h"
 #include "setting.h"
 #include "util.h"
 #include <string>
@@ -24,8 +23,4 @@ void ReadNpy(std::string _file, T* _data);
 
 template <typename T>
 void WriteNpy(std::string _file, int3 _grid_dim, const T* _data);
-
-void ReadMeshObj(std::string _file, Mesh& _meshes);
-
-void WriteMeshObj(std::string _file, const Mesh& _meshes);
 }
