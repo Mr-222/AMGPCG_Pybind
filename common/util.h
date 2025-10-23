@@ -136,6 +136,11 @@ __host__ __device__ __forceinline__ float3x3 MatMulMat(float3x3 _m1, float3x3 _m
     return ret;
 }
 
+__host__ __device__ __forceinline__ float4 VecMulScalar(float4 _v, float _s)
+{
+    return make_float4(_v.x * _s, _v.y * _s, _v.z * _s, _v.w * _s);
+}
+
 __host__ __device__ __forceinline__ float4 QuatMulQuat(float4 _q1, float4 _q2)
 {
     float4 ret;
