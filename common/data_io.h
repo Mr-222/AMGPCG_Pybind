@@ -5,7 +5,7 @@
 #include "util.h"
 #include <string>
 
-namespace lfm {
+namespace ofm {
 template <typename T>
 void ConToTileAsync(DHMemory<T>& _dst, int3 _tile_dim, const DHMemory<T>& _src, cudaStream_t _stream);
 

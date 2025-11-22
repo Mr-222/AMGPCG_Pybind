@@ -3,7 +3,7 @@
 #include "trim_poisson.h"
 #include <vector>
 
-namespace lfm {
+namespace ofm {
 class AMGPCG {
 public:
     int3 tile_dim_;

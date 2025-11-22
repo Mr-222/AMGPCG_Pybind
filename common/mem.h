@@ -2,7 +2,7 @@
 
 #include <cuda_runtime.h>
 
-namespace lfm {
+namespace ofm {
 template <typename T>
 class DHMemory {
 public:

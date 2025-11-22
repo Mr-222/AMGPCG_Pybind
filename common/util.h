@@ -2,7 +2,7 @@
 
 #include <cuda_runtime.h>
 
-namespace lfm {
+namespace ofm {
 __host__ __device__ __forceinline__ int TileIjkToIdx(int3 _dim, int3 _ijk)
 {
     return _ijk.x * _dim.y * _dim.z + _ijk.y * _dim.z + _ijk.z;

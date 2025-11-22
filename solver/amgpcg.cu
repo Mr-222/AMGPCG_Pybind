@@ -2,7 +2,7 @@
 #include "timer.h"
 #include <cub/cub.cuh>
 
-namespace lfm {
+namespace ofm {
 void AMGPCG::Alloc(int3 _tile_dim, int _level_num)
 {
     tile_dim_  = _tile_dim;

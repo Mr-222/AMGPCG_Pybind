@@ -3,21 +3,19 @@
 #include <array>
 #include <complex>
 #include <cstdint>
-#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
 #include <typeindex>
 #include <typeinfo>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-namespace lfm {
+namespace ofm {
 template <typename T>
 __global__ void ConToTileKernel(T* _dst, int3 _tile_dim, const T* _src)
 {

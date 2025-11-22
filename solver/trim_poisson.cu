@@ -3,7 +3,7 @@
 #include "trim_poisson.h"
 #include <cub/cub.cuh>
 
-namespace lfm {
+namespace ofm {
 TrimPoisson::TrimPoisson(int3 _tile_dim)
 {
     Alloc(_tile_dim);

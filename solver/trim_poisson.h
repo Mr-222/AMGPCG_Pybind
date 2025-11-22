@@ -5,7 +5,7 @@
 #include "util.h"
 #include <memory>
 
-namespace lfm {
+namespace ofm {
 class TrimPoisson {
 public:
     int3 tile_dim_;

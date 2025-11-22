@@ -3,7 +3,7 @@
 #include "util.h"
 #include <cstring>
 
-namespace lfm {
+namespace ofm {
 template <typename T>
 DHMemory<T>::DHMemory(int _size)
 {
