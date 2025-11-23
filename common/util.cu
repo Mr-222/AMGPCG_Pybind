@@ -1,7 +1,7 @@
 #include "util.h"
 #include <iostream>
 
-namespace lfm {
+namespace ofm {
 template <typename T>
 void DevToDevCpyAsync(T* _dst, const T* _src, int _size, cudaStream_t _stream)
 {

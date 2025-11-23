@@ -1,5 +1,5 @@
 #pragma once
 
-namespace lfm {
+namespace ofm {
 const cudaStream_t sim_stream = 0;
 };

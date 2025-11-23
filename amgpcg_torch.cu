@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <torch/extension.h>
 
-using namespace lfm;
+using namespace ofm;
 
 #define CHECK_CUDA(x) TORCH_CHECK(x.is_cuda(), #x " must be a CUDA tensor")
 #define CHECK_CONTIGUOUS(x) \
